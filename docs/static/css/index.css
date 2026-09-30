@@ -187,8 +187,21 @@ section.tinted {
   font-weight: 750;
   line-height: 1.12;
   letter-spacing: -0.022em;
-  margin: 0 0 1.5rem;
+  margin: 0 0 1rem;
   text-wrap: balance;
+}
+/* the venue sits between the title and the authors as a small tinted label */
+.venue {
+  display: inline-block;
+  margin: 0 0 1.4rem;
+  padding: 0.3rem 0.9rem;
+  font-size: 0.95rem;
+  font-weight: 650;
+  letter-spacing: 0.03em;
+  color: var(--ours-text);
+  background: var(--ours-wash);
+  border: 1px solid #f6d3c2;
+  border-radius: 100px;
 }
 
 .authors {
@@ -197,7 +210,7 @@ section.tinted {
   margin: 0 0 0.6rem;
   color: var(--ink);
 }
-.authors a { color: inherit; text-decoration: none; border-bottom: 1px solid var(--rule-strong); }
+.authors a { white-space: nowrap; color: inherit; text-decoration: none; border-bottom: 1px solid var(--rule-strong); }
 .authors a:hover,
 .authors a:focus-visible { color: var(--ours-text); border-bottom-color: var(--ours-text); }
 .authors sup { font-weight: 600; color: var(--ink-muted); }
