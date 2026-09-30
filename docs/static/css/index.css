@@ -1,0 +1,1839 @@
+/* ==========================================================================
+   StreamMAE project page
+   Colour roles: blue = i.i.d. reference, orange = ours, warm gray = other methods.
+   ========================================================================== */
+
+:root {
+  /* Surfaces, warm neutrals, not cold slate */
+  --page:            #f9f9f7;   /* odd sections */
+  --band:            #efeee6;   /* even sections, alternating, deliberately faint */
+  --surface:         #fcfcfb;   /* cards, lifted off both */
+  --surface-sunken:  #f3f2ee;   /* component chrome: table heads, pills, chips */
+
+  /* Ink */
+  --ink:             #0b0b0b;
+  --ink-2:           #52514e;
+  --ink-muted:       #6e6c66;   /* 4.5:1 on the band; --context keeps #898781 for bars */
+
+  /* Hairlines */
+  --rule:            rgba(11, 11, 11, 0.10);
+  --rule-strong:     rgba(11, 11, 11, 0.18);
+  --grid:            #e1e0d9;
+
+  /* Data colours, checked to stay distinct under colour-vision deficiency */
+  --ours:            #eb6834;  /* StreamMAE, marks, fills, large display numbers */
+  --ours-text:       #b03800;  /* the same hue stepped for small text: 5.3:1 on the band */
+  --ours-deep:       #c44b15;  /* ordinal step: larger encoder */
+  --ours-wash:       #fdf0ea;
+  --ref:             #2a78d6;  /* standard i.i.d. reference */
+  --ref-wash:        #eaf2fd;
+  --context:         #898781;  /* streaming baselines */
+  --context-track:   #eceae4;
+
+  --radius:          10px;
+  --radius-sm:       6px;
+  --measure:         68ch;
+
+  --info: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20m0 1.8a8.2 8.2 0 1 1 0 16.4 8.2 8.2 0 0 1 0-16.4M11 10.6h2v7h-2zm0-4h2v2.2h-2z'/%3E%3C/svg%3E");
+
+  --font: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --mono: ui-monospace, 'SF Mono', 'Cascadia Code', 'Roboto Mono', monospace;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+/* Inline SVG icon sprite: defined once, referenced with <use>. */
+.sprite { position: absolute; width: 0; height: 0; overflow: hidden; }
+
+.ico {
+  width: 1em;
+  height: 1em;
+  flex: none;
+  vertical-align: -0.125em;
+}
+.ico-lg { width: 1.15em; height: 1.15em; }
+
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: 5rem;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font);
+  font-size: 17px;
+  line-height: 1.65;
+  color: var(--ink);
+  background: var(--page);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* --------------------------------------------------------------- layout -- */
+
+.wrap {
+  width: min(100% - 3rem, 68rem);
+  margin-inline: auto;
+}
+
+.wrap-narrow {
+  width: min(100% - 3rem, 48rem);
+  margin-inline: auto;
+}
+
+section { padding-block: 4.5rem; }
+
+/* Sections alternate page / band so the eye can tell them apart while
+   scrolling. The step is ~1.1:1, enough to read as a change, not a stripe. */
+section.tinted {
+  background: var(--band);
+  border-block: 1px solid var(--rule);
+}
+
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  background: var(--ink);
+  color: #fff;
+  padding: 0.75rem 1.25rem;
+  border-radius: 0 0 var(--radius-sm) 0;
+  z-index: 200;
+}
+.skip-link:focus { left: 0; }
+
+/* ------------------------------------------------------------------ nav -- */
+
+.topnav {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: rgba(249, 249, 247, 0.88);
+  backdrop-filter: saturate(180%) blur(12px);
+  -webkit-backdrop-filter: saturate(180%) blur(12px);
+  border-bottom: 1px solid transparent;
+  transition: border-color 0.2s ease;
+}
+
+.topnav.is-stuck { border-bottom-color: var(--rule); }
+
+.topnav-inner {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  height: 3.5rem;
+}
+
+.topnav-brand {
+  font-weight: 700;
+  font-size: 0.95rem;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+  text-decoration: none;
+  flex: none;
+}
+.topnav-brand .dot {
+  display: inline-block;
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: var(--ours);
+  margin-right: 0.5rem;
+  vertical-align: 1px;
+}
+
+.topnav-links {
+  display: flex;
+  gap: 0.25rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.topnav-links::-webkit-scrollbar { display: none; }
+
+.topnav-links a {
+  display: block;
+  padding: 0.4rem 0.7rem;
+  font-size: 0.88rem;
+  font-weight: 500;
+  color: var(--ink-2);
+  text-decoration: none;
+  border-radius: var(--radius-sm);
+  white-space: nowrap;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+.topnav-links a:hover { color: var(--ink); background: rgba(11, 11, 11, 0.04); }
+.topnav-links a.is-active { color: var(--ours-text); font-weight: 600; }
+
+/* ---------------------------------------------------------------- hero --- */
+
+.hero {
+  padding-block: 4rem 2.5rem;
+  text-align: center;
+}
+
+.hero h1 {
+  font-size: clamp(1.9rem, 4.2vw, 3rem);
+  font-weight: 750;
+  line-height: 1.12;
+  letter-spacing: -0.022em;
+  margin: 0 0 1.5rem;
+  text-wrap: balance;
+}
+
+.authors {
+  font-size: 1.05rem;
+  font-weight: 500;
+  margin: 0 0 0.6rem;
+  color: var(--ink);
+}
+.authors a { color: inherit; text-decoration: none; border-bottom: 1px solid var(--rule-strong); }
+.authors a:hover,
+.authors a:focus-visible { color: var(--ours-text); border-bottom-color: var(--ours-text); }
+.authors sup { font-weight: 600; color: var(--ink-muted); }
+
+.affiliations {
+  font-size: 0.95rem;
+  color: var(--ink-2);
+  margin: 0 0 2rem;
+  line-height: 1.6;
+}
+.affiliations sup { font-weight: 600; }
+
+.links {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.6rem;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.6rem 1.1rem;
+  font-family: inherit;
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: #fff;
+  background: var(--ink);
+  border: 1px solid var(--ink);
+  border-radius: 100px;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+.btn:hover { background: #2c2b29; border-color: #2c2b29; }
+
+.btn[disabled], .btn.is-pending {
+  background: transparent;
+  color: var(--ink-muted);
+  border-color: var(--rule-strong);
+  border-style: dashed;
+  cursor: default;
+}
+
+
+/* -------------------------------------------------------------- figures -- */
+
+figure {
+  margin: 0;
+}
+
+.fig img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.fig-zoom {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  background: var(--surface);
+  cursor: zoom-in;
+  overflow: hidden;
+  position: relative;
+}
+.fig-zoom img { border-radius: 0; }
+.fig-zoom:hover { border-color: var(--rule-strong); }
+
+.fig-zoom::after {
+  content: "";
+  background: rgba(252, 252, 251, 0.92) center / 0.95rem no-repeat
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2352514e' stroke-width='2' stroke-linecap='round'%3E%3Ccircle cx='10.5' cy='10.5' r='6.5'/%3E%3Cpath d='M15.5 15.5 21 21M10.5 7.5v6M7.5 10.5h6'/%3E%3C/svg%3E");
+  position: absolute;
+  right: 0.6rem;
+  bottom: 0.6rem;
+  width: 1.9rem;
+  height: 1.9rem;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-sm);
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+.fig-zoom:hover::after, .fig-zoom:focus-visible::after { opacity: 1; }
+
+/* Captions are left-aligned and share one measure with the body copy. Centred
+   captions leave a short, floating second line whenever they wrap. */
+figcaption {
+  margin-top: 0.85rem;
+  font-size: 0.92rem;
+  line-height: 1.6;
+  color: var(--ink-2);
+  text-wrap: pretty;
+}
+figcaption b, figcaption strong { color: var(--ink); font-weight: 600; }
+
+/* The teaser caption. Not flex: a flex gap lands between the bold opening and
+   the comma that follows it, which shows up as a stray space. */
+.fig-lead {
+  font-size: 1rem;
+}
+.scroll-cue {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-left: 0.9rem;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--ours-text);
+  text-decoration: none;
+  white-space: nowrap;
+}
+.scroll-cue span {
+  transition: transform 0.18s ease;
+}
+.scroll-cue:hover span { transform: translateX(3px); }
+
+/* the sentence that says what the gradient numbers mean, before they appear */
+.finding-intro {
+  margin: 0 0 1.25rem;
+  font-size: 0.95rem;
+  line-height: 1.6;
+  color: var(--ink-2);
+  text-wrap: pretty;
+}
+.finding-intro strong { color: var(--ink); font-weight: 650; }
+
+/* Lightbox */
+.lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  display: none;
+  place-items: center;
+  padding: 2rem;
+  background: rgba(11, 11, 11, 0.86);
+  cursor: zoom-out;
+}
+.lightbox.is-open { display: grid; }
+.lightbox img {
+  max-width: 100%;
+  max-height: 86vh;
+  border-radius: var(--radius-sm);
+  background: #fff;
+}
+.lightbox-caption {
+  color: #e6e5e0;
+  font-size: 0.9rem;
+  margin-top: 1rem;
+  max-width: var(--measure);
+  margin-inline: auto;
+  text-wrap: pretty;
+}
+.lightbox-close {
+  position: absolute;
+  top: 1.25rem;
+  right: 1.5rem;
+  width: 2.5rem;
+  height: 2.5rem;
+  display: grid;
+  place-items: center;
+  font-size: 1.1rem;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.12);
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+}
+.lightbox-close:hover { background: rgba(255, 255, 255, 0.22); }
+
+/* --------------------------------------------------------------- prose --- */
+
+h2.section-title {
+  font-size: clamp(1.45rem, 2.6vw, 1.9rem);
+  font-weight: 700;
+  letter-spacing: -0.018em;
+  margin: 0 0 0.5rem;
+  text-wrap: balance;
+}
+
+/* Wider than body copy: a one-sentence lede capped at the reading measure
+   stops around 60% of a wide section and reads as a broken line. */
+.section-lede {
+  font-size: 1.05rem;
+  color: var(--ink-2);
+  margin: 0 0 2.5rem;
+  max-width: 82ch;
+  text-wrap: pretty;
+}
+
+.section-head { margin-bottom: 2.5rem; }
+.section-head .section-lede { margin-bottom: 0; }
+
+h3.sub-title {
+  font-size: 1.12rem;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  margin: 0 0 0.35rem;
+}
+
+.prose p {
+  max-width: var(--measure);
+  margin: 0 0 1.15rem;
+  color: var(--ink-2);
+  text-wrap: pretty;
+}
+.prose p:last-child { margin-bottom: 0; }
+.prose strong { color: var(--ink); font-weight: 600; }
+.prose .lead { font-size: 1.08rem; color: var(--ink); }
+
+.mono-tag {
+  font-family: var(--mono);
+  font-size: 0.88em;
+  background: var(--surface-sunken);
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  padding: 0.08em 0.36em;
+  white-space: nowrap;
+}
+.tinted .mono-tag { background: var(--surface); }
+
+/* ---------------------------------------------------------------- card --- */
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  padding: 1.6rem;
+}
+
+.card + .card { margin-top: 1.5rem; }
+
+.card-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem 1.5rem;
+  margin-bottom: 1.25rem;
+}
+.card-head .titles { min-width: 0; }
+.card-head.is-tight { margin-bottom: 0.5rem; }
+
+/* a lead sentence that gets the full card width, clear of the controls row */
+.card-intro {
+  margin: 0 0 1.5rem;
+  font-size: 0.95rem;
+  line-height: 1.6;
+  color: var(--ink-2);
+  text-wrap: pretty;
+}
+.card-intro strong { color: var(--ink); font-weight: 650; }
+/* the two experiment plans sit under the intro as a short list */
+.xp-plan { margin-top: -0.4rem; padding-left: 1.2rem; }
+.xp-plan li + li { margin-top: 0.35rem; }
+
+/* one-line gloss under a card title */
+.card-sub {
+  margin: 0 0 1rem;
+  font-size: 0.85rem;
+  color: var(--ink-muted);
+}
+.card-head p {
+  margin: 0;
+  font-size: 0.92rem;
+  color: var(--ink-2);
+  max-width: 64ch;
+  text-wrap: pretty;
+}
+
+/* ------------------------------------------------------------- controls -- */
+
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1.4rem;
+}
+
+.segmented {
+  display: inline-flex;
+  flex-wrap: wrap;              /* five pills must not force a phone to scroll */
+  max-width: 100%;
+  padding: 3px;
+  gap: 2px;
+  background: var(--surface-sunken);
+  border: 1px solid var(--rule);
+  border-radius: 100px;
+}
+.tinted .segmented { background: var(--surface); }
+
+.segmented button {
+  appearance: none;
+  border: none;
+  background: transparent;
+  font-family: inherit;
+  font-size: 0.85rem;
+  font-weight: 550;
+  color: var(--ink-2);
+  padding: 0.35rem 0.85rem;
+  border-radius: 100px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.segmented button:hover { color: var(--ink); }
+.segmented button.is-on {
+  background: var(--ink);
+  color: #fff;
+  font-weight: 600;
+}
+
+.ghost-toggle {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-family: inherit;
+  font-size: 0.85rem;
+  font-weight: 550;
+  color: var(--ink-2);
+  background: transparent;
+  border: 1px solid var(--rule);
+  border-radius: 100px;
+  padding: 0.4rem 0.85rem;
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+.ghost-toggle:hover { color: var(--ink); border-color: var(--rule-strong); }
+.ghost-toggle.is-on { color: var(--ink); border-color: var(--ink); }
+
+.metric-note {
+  font-size: 0.82rem;
+  color: var(--ink-muted);
+  margin-left: auto;
+}
+
+/* --------------------------------------------------------------- charts -- */
+
+.chart { position: relative; }
+
+.chart-rows {
+  display: grid;
+  gap: 2px;                       /* the 2px surface gap between adjacent bars */
+}
+
+.row {
+  display: grid;
+  grid-template-columns: minmax(6.5rem, 13rem) 1fr;
+  align-items: center;
+  gap: 0.9rem;
+  padding: 3px 0;
+  border-radius: var(--radius-sm);
+  cursor: default;
+}
+.row:hover, .row:focus-visible {
+  background: rgba(11, 11, 11, 0.028);
+  outline: none;
+}
+.row:focus-visible { box-shadow: 0 0 0 2px var(--ours); }
+
+.row .name {
+  font-size: 0.88rem;
+  color: var(--ink-2);
+  text-align: right;
+  line-height: 1.35;
+  overflow-wrap: break-word;
+}
+.row.is-ours .name { color: var(--ink); font-weight: 650; }
+.row.is-ref .name { color: var(--ink-2); }
+.row .name .qual {
+  display: block;
+  font-size: 0.76rem;
+  color: var(--ink-muted);
+  font-weight: 400;
+}
+
+/* A bar track reserves a right-hand gutter so the tip label never clips.
+   The bar and its label are both positioned as a % of .bar-wrap, so they
+   share one scale and animate together when the metric changes. */
+.bar-track {
+  position: relative;
+  height: 22px;
+}
+
+.bar-wrap {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: var(--gutter, 3.2rem);
+}
+
+.bar {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 0;
+  border-radius: 0 4px 4px 0;     /* 4px rounded data-end, square at baseline */
+  background: var(--context);
+  transition: width 0.5s cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+.row.is-ours .bar { background: var(--ours); }
+.row.is-ref  .bar { background: var(--ref); }
+
+.row:hover .bar, .row:focus-visible .bar { filter: brightness(1.06); }
+
+.bar-value {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  transform: translateY(-50%);
+  margin-left: 0.5rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  transition: left 0.5s cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+.row.is-ours .bar-value { font-weight: 700; }
+
+/* Reference rule, marks the i.i.d. baseline across the whole plot. */
+.chart-plot { position: relative; }
+
+.ref-rule {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 0;
+  border-left: 1px dashed var(--ref);
+  pointer-events: none;
+}
+.ref-rule.flip .ref-rule-label { left: auto; right: 0.4rem; }
+
+.ref-rule-label {
+  position: absolute;
+  top: -0.15rem;
+  left: 0.4rem;
+  transition: none;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--ref);
+  white-space: nowrap;
+  background: var(--surface);
+  padding: 0 0.3rem;
+}
+
+/* ---------------------------------------------- sliding-window animation -- */
+
+.swin {
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  background: var(--surface);
+  padding: 1.1rem 1.2rem 1.2rem;
+}
+
+.swin-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1.25rem;
+  margin-bottom: 1.25rem;
+}
+
+.swin-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-family: inherit;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--ink-2);
+  background: transparent;
+  border: 1px solid var(--rule);
+  border-radius: 100px;
+  padding: 0.35rem 0.8rem;
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+.swin-btn:hover { color: var(--ink); border-color: var(--rule-strong); }
+.swin-btn .ico { width: 0.82em; height: 0.82em; }
+
+.swin-sliders {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 1.25rem;
+  margin-left: auto;
+}
+.swin-slider {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8rem;
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+.swin-slider > span em { font-style: italic; font-weight: 600; color: var(--ink); }
+.swin-slider output {
+  min-width: 1.1rem;
+  font-weight: 700;
+  color: var(--ours-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.swin-slider input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 5.5rem;
+  height: 18px;
+  background: transparent;
+  cursor: pointer;
+  margin: 0;
+}
+.swin-slider input[type="range"]::-webkit-slider-runnable-track {
+  height: 3px;
+  background: var(--context-track);
+  border-radius: 2px;
+}
+.swin-slider input[type="range"]::-moz-range-track {
+  height: 3px;
+  background: var(--context-track);
+  border-radius: 2px;
+}
+.swin-slider input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 13px;
+  height: 13px;
+  margin-top: -5px;
+  border-radius: 50%;
+  background: var(--ours);
+  border: 2px solid var(--surface);
+  box-shadow: 0 0 0 1px var(--rule-strong);
+}
+.swin-slider input[type="range"]::-moz-range-thumb {
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: var(--ours);
+  border: 2px solid var(--surface);
+  box-shadow: 0 0 0 1px var(--rule-strong);
+}
+
+/* The film strip: a clipping viewport with a wider track sliding inside it.
+   Cells show real WT++London frames from a sprite sheet, with the frame
+   index labelled underneath. */
+.swin-stage {
+  position: relative;
+  padding-top: 1.85rem;         /* room for the batch tag above the strip */
+}
+
+/* Warm charcoal film stock rather than black: the frame numbers sit on it, and
+   on black they were barely legible. Every mark below is measured against it , 
+   labels 5.3:1+, the batch ring 4.1:1, the window border 12.6:1. */
+.swin-viewport {
+  --tape: #33312d;
+  overflow: hidden;
+  background: var(--tape);
+  border-radius: var(--radius-sm);
+  padding: 6px;
+  /* the perforated edges of a film strip */
+  border-top: 8px dashed var(--surface);
+  border-bottom: 8px dashed var(--surface);
+  outline: 1px solid var(--rule);
+}
+
+.swin-track {
+  position: relative;
+  transition: transform 0.85s cubic-bezier(0.4, 0.05, 0.2, 1);
+  will-change: transform;
+}
+.swin-track.no-anim { transition: none; }
+
+.swin-cell {
+  position: absolute;
+  top: 0;
+}
+
+/* A dim overlay rather than a CSS filter: filters would take the track off
+   the compositor fast path while it slides. */
+.swin-thumb {
+  position: relative;
+  border-radius: 2px;
+  background-repeat: no-repeat;
+  background-color: #4a4741;
+  box-shadow: inset 0 0 0 0 transparent;
+  transition: box-shadow 0.45s ease;
+}
+.swin-thumb::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 2px;
+  background: #1a1916;
+  opacity: 0.6;                       /* outside the batch */
+  transition: opacity 0.45s ease;
+}
+
+.swin-cell-label {
+  display: block;
+  text-align: center;
+  font-size: 0.7rem;
+  line-height: 19px;
+  color: #a8a69e;                     /* 5.3:1 on the tape */
+  font-variant-numeric: tabular-nums;
+  transition: color 0.45s ease;
+}
+.swin-x { opacity: 0.6; margin-right: 0.5px; }
+.swin-cell-label sub {
+  font-size: 0.76em;
+  line-height: 0;
+  vertical-align: -0.22em;
+  font-variant-numeric: tabular-nums;
+}
+
+.swin-cell.is-past .swin-thumb::after { opacity: 0.72; }
+
+/* The whole batch shares one ring colour, the dimming, not a second hue,
+   separates repeated frames from new ones. */
+.swin-cell.is-in .swin-thumb {
+  box-shadow: inset 0 0 0 2.5px var(--ours);
+}
+.swin-cell.is-in .swin-thumb::after { opacity: 0; }
+.swin-cell.is-in .swin-cell-label { color: #ffb591; font-weight: 700; }
+
+/* Repeated: same batch, but the model already saw it last step. */
+.swin-cell.is-repeated .swin-thumb::after { opacity: 0.34; }
+.swin-cell.is-repeated .swin-cell-label { color: #d79b78; font-weight: 600; }
+
+/* The window rides inside the track, so it travels with its own frames. */
+.swin-window {
+  position: absolute;
+  left: 0;
+  top: -3px;
+  width: 0;
+  height: 0;
+  z-index: 2;
+  border: 2px solid var(--surface);
+  border-radius: 5px;
+  box-shadow: 0 0 0 1px rgba(11, 11, 11, 0.35);
+  pointer-events: none;
+  transition: transform 0.85s cubic-bezier(0.4, 0.05, 0.2, 1),
+              width 0.35s ease;
+}
+.swin-window.no-anim { transition: none; }
+
+.swin-window-tag {
+  position: absolute;
+  bottom: calc(100% + 12px);
+  left: 0;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.swin-window-tag::before { content: "batch "; color: var(--ink-muted); }
+
+.swin-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem 1.5rem;
+  margin-top: 1rem;
+  padding-top: 0.9rem;
+  border-top: 1px solid var(--rule);
+}
+.swin-legend { font-size: 0.78rem; gap: 0.85rem; }
+.swin-legend .key { width: 10px; height: 10px; }
+
+.swin-readout {
+  margin: 0;
+  font-size: 0.84rem;
+  line-height: 1.55;
+  color: var(--ink-2);
+}
+.swin-ro-strong { font-weight: 650; color: var(--ink); }
+
+@media (max-width: 760px) {
+  .swin { padding: 0.9rem; }
+  .swin-sliders { margin-left: 0; width: 100%; }
+  .swin-slider input[type="range"] { width: 4.5rem; }
+  .swin-cell { height: 32px; font-size: 0.66rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .swin-window, .swin-cell, .swin-track { transition: none !important; }
+}
+
+/* Definitions of intra / inter-batch similarity, a small diagram each. */
+.defs {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(19rem, 1fr));
+  gap: 1.5rem 2.5rem;
+}
+.def {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+}
+.def-art { width: 108px; height: auto; flex: none; margin-top: 0.15rem; }
+.def-title {
+  font-size: 0.98rem;
+  font-weight: 650;
+  margin: 0 0 0.25rem;
+}
+.def-title em { font-style: italic; color: var(--ours-text); }
+.def p {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.55;
+  color: var(--ink-2);
+}
+
+/* Inline hint: detail on hover or focus, out of the way otherwise. */
+/* An info mark, not a question mark: a "?" after a heading made the heading
+   itself read as a question. Drawn from a mask, so it has no text. */
+/* An info mark, not a question mark: a "?" after a heading made the heading
+   itself read as a question. The glyph lives on ::before, because a mask on
+   .hint itself would clip the ::after tooltip. */
+.hint {
+  display: inline-block;
+  width: 0.92em;
+  height: 0.92em;
+  margin-left: 0.25em;
+  vertical-align: -0.08em;
+  cursor: help;
+  position: relative;
+}
+.hint::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--ink-muted);
+  -webkit-mask: var(--info) center / contain no-repeat;
+  mask: var(--info) center / contain no-repeat;
+  transition: background 0.15s ease;
+}
+.hint:hover::before, .hint:focus-visible::before { background: var(--ink); }
+
+/* display:none rather than visibility:hidden, a hidden-but-laid-out tooltip
+   still counts toward the page's scroll width and caused a horizontal
+   overflow on narrow screens. */
+/* the mask clips ::after, so the tooltip hangs off a wrapper-free anchor */
+.hint::after {
+  content: attr(data-hint);
+  display: none;
+  position: absolute;
+  bottom: calc(100% + 0.5rem);
+  left: 50%;
+  transform: translateX(-50%);
+  width: max-content;
+  max-width: min(17rem, 70vw);
+  padding: 0.55rem 0.7rem;
+  font-size: 0.78rem;
+  font-weight: 400;
+  line-height: 1.5;
+  text-align: left;
+  color: var(--ink-2);
+  background: var(--surface);
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius-sm);
+  box-shadow: 0 6px 18px rgba(11, 11, 11, 0.12);
+  z-index: 30;
+  pointer-events: none;
+}
+.hint:hover::after, .hint:focus-visible::after {
+  display: block;
+  animation: hintIn 0.14s ease both;
+}
+@keyframes hintIn { from { opacity: 0 } to { opacity: 1 } }
+
+/* Method components. */
+/* Group heading sits directly above the block it names, centred, with a rule
+   running out to each side. */
+.group { margin-block: 0; }
+.group-title {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin: 0 0 1rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  color: var(--ours-text);
+  text-align: center;
+}
+.group-title::before,
+.group-title::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--rule);
+}
+
+.components {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+  gap: 1.25rem;
+}
+.components-2 { grid-template-columns: repeat(auto-fit, minmax(19rem, 1fr)); }
+
+.component {
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  padding: 1.25rem;
+}
+.comp-art {
+  width: 100%;
+  height: auto;
+  display: block;
+  margin-bottom: 1rem;
+}
+.component h4 {
+  font-size: 0.98rem;
+  font-weight: 650;
+  margin: 0 0 0.3rem;
+}
+.component p {
+  margin: 0;
+  font-size: 0.88rem;
+  line-height: 1.55;
+  color: var(--ink-2);
+}
+.art-label {
+  font-family: var(--font);
+  font-size: 8.5px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  fill: var(--ink-muted);
+}
+.art-label-strong { fill: var(--ours); }
+
+
+
+/* The control: two before/after experiments, no controls to operate. */
+.xp {
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  padding: 1.4rem 1.5rem;
+}
+.xp + .xp { margin-top: 1.25rem; }
+
+.xp-head { margin-bottom: 1.25rem; }
+.xp-n {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  color: var(--ours-text);
+  margin-bottom: 0.35rem;
+}
+.xp-head h4 {
+  font-size: 1.12rem;
+  font-weight: 700;
+  margin: 0 0 0.3rem;
+}
+.xp-head p {
+  margin: 0;
+  font-size: 0.92rem;
+  line-height: 1.55;
+  color: var(--ink-2);
+  max-width: var(--measure);
+}
+
+.xp-grid { display: grid; gap: 2px; }
+
+.xp-line {
+  display: grid;
+  grid-template-columns: minmax(8rem, 13rem) 1fr auto 1fr 5.5rem;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--radius-sm);
+}
+/* with a reference column: it sits outside the before/after chain */
+.xp-grid.has-ref .xp-line {
+  grid-template-columns: minmax(7rem, 11rem) minmax(4.5rem, 0.85fr) 1fr auto 1fr 5.5rem;
+}
+.xp-ref {
+  font-size: 0.95rem;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  color: var(--ink-muted);
+  padding-right: 0.75rem;
+  border-right: 1px solid var(--rule);
+}
+.xp-line.is-cols .xp-ref {
+  font-size: 0.78rem;
+  font-weight: 600;
+  border-right: none;
+}
+.xp-ref-k { display: none; }
+
+.xp-label { font-size: 0.88rem; color: var(--ink-2); }
+.xp-a, .xp-b {
+  font-size: 1rem;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+.xp-arrow { color: var(--ink-muted); font-size: 0.95rem; }
+.xp-tag {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+  text-align: right;
+}
+
+/* column headings */
+.xp-line.is-cols { padding-block: 0 0.35rem; }
+.xp-line.is-cols .xp-a,
+.xp-line.is-cols .xp-b {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--ink-muted);
+  text-align: center;
+}
+
+/* the variable that was deliberately held constant */
+.xp-line.is-held .xp-a,
+.xp-line.is-held .xp-b { color: var(--ink-muted); }
+
+/* the variable under test */
+.xp-line.is-changed {
+  background: var(--ours-wash);
+  box-shadow: inset 2px 0 0 var(--ours);
+}
+.xp-line.is-changed .xp-label { color: var(--ink); font-weight: 650; }
+.xp-line.is-changed .xp-a,
+.xp-line.is-changed .xp-b { font-weight: 700; color: var(--ink); }
+.xp-line.is-changed .xp-arrow { color: var(--ours-text); }
+.xp-line.is-changed .xp-tag { color: var(--ours-text); }
+
+/* outcomes: one row per benchmark, each with its own delta */
+.xp-line.is-first-result {
+  margin-top: 0.35rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid var(--rule);
+  border-radius: 0;
+}
+.xp-line.is-result .xp-label { color: var(--ink); font-weight: 650; }
+.xp-line.is-result .xp-a,
+.xp-line.is-result .xp-b { font-size: 1.1rem; font-weight: 700; }
+.xp-line.is-result .xp-ref { font-size: 1rem; }
+
+.xp-tag.is-delta {
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: none;
+  font-variant-numeric: tabular-nums;
+}
+.xp-tag.is-delta.is-flat { color: var(--ref); }
+.xp-tag.is-delta.is-bad  { color: #c0392b; }
+
+.xp-out {
+  margin-top: 0.9rem;
+  padding: 0.7rem 0.9rem;
+  border-radius: var(--radius-sm);
+}
+.xp-out-lbl {
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+.xp-out.is-flat { background: var(--ref-wash); }
+.xp-out.is-flat .xp-out-lbl { color: var(--ref); }
+.xp-out.is-bad { background: #fbeceb; }
+.xp-out.is-bad .xp-out-lbl { color: #c0392b; }
+
+/* WT++ stream construction bars. */
+.streams { display: grid; gap: 1.1rem; }
+.stream-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.3rem;
+}
+.stream-name {
+  font-family: var(--mono);
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+.stream-meta { font-size: 0.78rem; color: var(--ink-muted); }
+.stream-track {
+  position: relative;
+  height: 14px;
+}
+/* The lane stops short of the right edge so the hours label always fits. */
+.stream-lane {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 3.4rem;
+}
+.stream-fill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  background: var(--context);
+  border-radius: 0 3px 3px 0;
+}
+.stream-row.is-default .stream-fill { background: var(--ours); }
+.stream-row:last-child .stream-fill { background: var(--ours-deep); }
+.stream-hours {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  margin-left: 0.45rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.stream-note {
+  margin: 0.3rem 0 0;
+  font-size: 0.8rem;
+  color: var(--ink-muted);
+}
+
+/* City clips. Ten tiles, five across, all the same size. Mostar and Dubrovnik
+   lead the order. */
+.cities { margin-top: 3rem; }
+.cities-head { margin-bottom: 1.25rem; }
+.cities-head .sub-title { margin-bottom: 0.2rem; }
+.cities-head p {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--ink-muted);
+}
+
+.city-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 10px;
+}
+.city {
+  position: relative;
+  margin: 0;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: #2a2927;
+  outline: 1px solid var(--rule);
+  outline-offset: -1px;
+}
+
+.city-vid {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  background: #2a2927;
+}
+
+.city figcaption {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  margin: 0;
+  padding: 1.3rem 0.55rem 0.4rem;
+  font-size: 0.76rem;
+  font-weight: 650;
+  color: #fff;
+  text-align: left;
+  background: linear-gradient(to top, rgba(11, 11, 11, 0.75), rgba(11, 11, 11, 0));
+  pointer-events: none;
+}
+
+/* A budget/protocol caveat under a chart. */
+.caveat {
+  margin: 1.25rem auto 0;
+  text-wrap: pretty;
+  padding-top: 1rem;
+  border-top: 1px solid var(--rule);
+  font-size: 0.84rem;
+  line-height: 1.6;
+  color: var(--ink-muted);
+  max-width: var(--measure);
+}
+.caveat strong { color: var(--ink-2); font-weight: 650; }
+
+/* Domain generalization, small multiples. */
+.domain-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr));
+  gap: 1.75rem;
+}
+.domain-head { margin-bottom: 0.9rem; }
+.domain-head h4 {
+  font-size: 0.95rem;
+  font-weight: 700;
+  margin: 0;
+}
+.domain-head p {
+  margin: 0.1rem 0 0;
+  font-size: 0.8rem;
+  color: var(--ink-muted);
+}
+.domain-meta { font-size: 0.78rem; }
+.domain-meta strong { color: var(--ours-text); font-weight: 700; }
+.domain-panel .row { grid-template-columns: 1fr; gap: 0.15rem; }
+.domain-panel .row .name { text-align: left; font-size: 0.82rem; }
+.domain-panel .bar-track { --gutter: 2.8rem; height: 18px; }
+
+.chart-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 1.25rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--rule);
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  font-size: 0.83rem;
+  color: var(--ink-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.legend li { display: inline-flex; align-items: center; gap: 0.45rem; }
+.legend .key {
+  width: 12px; height: 12px;
+  border-radius: 3px;
+  flex: none;
+}
+.legend .key.line {
+  width: 16px; height: 3px;
+  border-radius: 2px;
+}
+.legend .key.ours { background: var(--ours); }
+.legend .key.ours-deep { background: var(--ours-deep); }
+.legend .key.ref { background: var(--ref); }
+.legend .key.context { background: var(--context); }
+
+.group-label {
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+  padding: 0.9rem 0 0.35rem;
+  grid-column: 1 / -1;
+}
+.group-label:first-child { padding-top: 0; }
+
+/* SVG line chart */
+.linechart { width: 100%; height: auto; display: block; overflow: visible; }
+.linechart .grid-line { stroke: var(--grid); stroke-width: 1; }
+.linechart .axis-line { stroke: #c3c2b7; stroke-width: 1; }
+.linechart .tick { fill: var(--ink-muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+.linechart .axis-title { fill: var(--ink-2); font-size: 12px; font-weight: 600; }
+.linechart .series-line { fill: none; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.linechart .series-dot { stroke: var(--surface); stroke-width: 2; }
+.linechart .end-label { font-size: 12.5px; font-weight: 650; fill: var(--ink); font-variant-numeric: tabular-nums; }
+.linechart .hit { fill: transparent; cursor: pointer; }
+.linechart .crosshair { stroke: var(--rule-strong); stroke-width: 1; }
+
+/* Tooltip */
+.tooltip {
+  position: absolute;
+  z-index: 20;
+  min-width: 9rem;
+  padding: 0.6rem 0.7rem;
+  background: var(--surface);
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius-sm);
+  box-shadow: 0 6px 18px rgba(11, 11, 11, 0.10);
+  font-size: 0.84rem;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.12s ease;
+}
+.tooltip.is-visible { opacity: 1; }
+.tooltip .tt-title {
+  font-size: 0.78rem;
+  color: var(--ink-muted);
+  margin-bottom: 0.35rem;
+}
+.tooltip .tt-row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  white-space: nowrap;
+}
+.tooltip .tt-row + .tt-row { margin-top: 0.2rem; }
+.tooltip .tt-key {
+  width: 14px; height: 3px;
+  border-radius: 2px;
+  flex: none;
+  transform: translateY(-3px);
+}
+.tooltip .tt-val {
+  font-weight: 700;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+.tooltip .tt-name { color: var(--ink-2); }
+
+/* ---------------------------------------------------------------- table -- */
+
+.table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-sm);
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+  font-variant-numeric: tabular-nums;
+  background: var(--surface);
+}
+
+thead th {
+  text-align: right;
+  font-weight: 600;
+  font-size: 0.78rem;
+  letter-spacing: 0.02em;
+  color: var(--ink-2);
+  padding: 0.7rem 0.85rem;
+  border-bottom: 1px solid var(--rule-strong);
+  white-space: nowrap;
+  background: var(--surface-sunken);
+}
+thead th:first-child { text-align: left; }
+
+tbody td {
+  text-align: right;
+  padding: 0.55rem 0.85rem;
+  border-bottom: 1px solid var(--rule);
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+tbody td:first-child { text-align: left; color: var(--ink); white-space: normal; }
+tbody tr:last-child td { border-bottom: none; }
+
+tbody tr.is-ours td { background: var(--ours-wash); color: var(--ink); font-weight: 600; }
+tbody tr.is-ref td { background: var(--ref-wash); }
+
+tbody tr.group-row td {
+  background: var(--surface-sunken);
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+  text-align: left;
+  padding: 0.45rem 0.85rem;
+}
+
+td .pm { color: var(--ink-muted); font-weight: 400; font-size: 0.85em; }
+td .qual { color: var(--ink-muted); font-weight: 400; }
+
+[hidden] { display: none !important; }
+
+/* ------------------------------------------------------------- two-col --- */
+
+.stack-xl > * + * { margin-top: 4rem; }
+
+/* The question each block answers. */
+.ask {
+  font-size: clamp(1.05rem, 2vw, 1.28rem);
+  font-weight: 650;
+  letter-spacing: -0.012em;
+  margin: 0 0 1.1rem;
+  color: var(--ink);
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  text-wrap: balance;
+}
+/* The only orange mark that sits straight on a section band, so it uses the
+   darker text step, 5.3:1 there instead of 2.8:1. */
+.ask::before {
+  content: "";
+  flex: none;
+  width: 4px;
+  align-self: stretch;
+  min-height: 1.1em;
+  border-radius: 2px;
+  background: var(--ours-text);
+}
+
+/* The one-line answer under a chart. */
+/* Centred as a block, but the text inside stays left-aligned: centred copy
+   leaves a short floating last line whenever it wraps. */
+.takeaway {
+  margin: 1.5rem auto 0;
+  max-width: var(--measure);
+  text-wrap: pretty;
+  padding: 0.85rem 1rem;
+  font-size: 0.94rem;
+  line-height: 1.55;
+  color: var(--ink);
+  background: var(--ours-wash);
+  border-left: 3px solid var(--ours);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+}
+.takeaway strong { font-weight: 700; }
+
+/* the conclusion of a takeaway, given its own centred line */
+.takeaway .punch {
+  display: block;
+  margin-top: 0.6rem;
+  padding-top: 0.6rem;
+  border-top: 1px solid rgba(235, 104, 52, 0.25);
+  text-align: center;
+  font-weight: 700;
+  color: var(--ours-text);
+}
+.takeaway em { font-style: italic; }
+
+/* The gradient finding, framed as distance from the i.i.d. anchor: the claim
+   is about distance, so the page should not leave the reader subtracting. */
+.finding {
+  display: grid;
+  grid-template-columns: minmax(8rem, 11rem) 1fr;
+  gap: 1px;
+  background: var(--rule);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.finding-anchor {
+  background: var(--ref-wash);
+  padding: 1rem 1.1rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  text-align: center;
+}
+.finding-anchor .finding-raw {
+  font-size: 1.6rem;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  line-height: 1.1;
+  color: var(--ref);
+}
+.finding-anchor .finding-lbl { color: var(--ref); font-weight: 600; }
+.finding-tag {
+  display: block;
+  margin-top: 0.3rem;
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ref);
+  opacity: 0.75;
+}
+
+.finding-scale {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1px;
+  background: var(--rule);
+}
+.finding-stat {
+  background: var(--surface);
+  padding: 1rem 0.9rem;
+  text-align: center;
+}
+/* Each distance uses its curve's colour from the figure below, so the strip
+   reads as that figure's legend: StreamMAE orange, streaming MAE (baseline)
+   green, Orthogonal-AdamW red, i.i.d. MAE blue on the anchor. The greens and
+   reds are the Google-palette steps the figure uses, darkened to the 600/800
+   step so they clear 4:1 as large text. */
+.finding-n {
+  display: block;
+  font-size: 1.6rem;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  line-height: 1.1;
+  color: var(--ours);
+}
+.finding-n::before { content: "\0394\2009"; font-size: 0.7em; opacity: 0.7; }
+.finding-stat:nth-child(2) .finding-n { color: #1e8e3e; }
+.finding-stat:nth-child(3) .finding-n { color: #a50e0e; }
+
+.finding-lbl {
+  display: block;
+  margin-top: 0.2rem;
+  font-size: 0.8rem;
+  color: var(--ink-2);
+}
+.finding-stat .finding-raw {
+  display: block;
+  margin-top: 0.15rem;
+  font-size: 0.75rem;
+  color: var(--ink-muted);
+  font-variant-numeric: tabular-nums;
+}
+.finding-cap {
+  grid-column: 1 / -1;
+  margin: 0;
+  padding: 0.7rem 1.1rem;
+  font-size: 0.82rem;
+  color: var(--ink-muted);
+  background: var(--surface-sunken);
+}
+.finding-cap strong { color: var(--ink-2); font-weight: 650; }
+
+/* The two similarity headline numbers, inline under each definition. */
+.def-nums {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.5rem;
+  margin: 0.55rem 0 0 !important;
+  font-size: 0.85rem;
+  color: var(--ink-muted);
+}
+.def-nums b {
+  font-weight: 700;
+  color: var(--ink-2);
+  font-variant-numeric: tabular-nums;
+}
+.def-nums .is-hi b { color: var(--ours-text); }
+/* sits directly under the two definitions, explaining their numbers */
+.def-src {
+  margin: 1rem 0 0;
+  font-size: 0.82rem;
+  color: var(--ink-muted);
+}
+.def-vs {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.7;
+}
+
+/* WT++ facts beside the stream ladder. */
+/* the facts and the stream ladder share a row; the clips run full width below */
+.data-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2rem;
+  align-items: start;
+}
+.data-note {
+  margin: 1.1rem 0 0;
+  font-size: 0.95rem;
+  line-height: 1.6;
+  color: var(--ink-2);
+  max-width: var(--measure);
+  text-wrap: pretty;
+}
+/* The three WT++ numbers are what this paragraph is for, so they take the
+   accent the page uses for our own work. --ours-text is the small-text step
+   of that hue, 5.8:1 here, where --ours itself would only reach 3.0:1. */
+.data-note strong { color: var(--ours-text); }
+.data-grid + .cities { margin-top: 3rem; }
+
+/* --------------------------------------------------------------- method -- */
+
+/* -------------------------------------------------------------- bibtex --- */
+
+.bibtex-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.85rem;
+}
+
+pre {
+  margin: 0;
+  padding: 1.2rem;
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-sm);
+  overflow-x: auto;
+  font-family: var(--mono);
+  font-size: 0.82rem;
+  line-height: 1.65;
+  color: var(--ink-2);
+  tab-size: 2;
+}
+pre code { font-family: inherit; }
+
+.copy-btn.is-copied {
+  color: #006300;
+  border-color: #006300;
+}
+
+/* -------------------------------------------------------------- poster --- */
+
+
+/* -------------------------------------------------------------- footer --- */
+
+.footer {
+  padding-block: 2.5rem;
+  border-top: 1px solid var(--rule);
+  background: var(--band);
+}
+.footer p {
+  margin: 0;
+  font-size: 0.85rem;
+  line-height: 1.65;
+  color: var(--ink-muted);
+  max-width: var(--measure);
+}
+.footer a { color: var(--ink-2); text-decoration: underline; text-underline-offset: 2px; }
+.footer a:hover { color: var(--ours-text); }
+
+/* --------------------------------------------------------------- focus --- */
+
+a:focus-visible,
+button:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid var(--ours);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+
+/* -------------------------------------------------------------- mobile --- */
+
+@media (max-width: 760px) {
+  body { font-size: 16px; }
+  section { padding-block: 3rem; }
+  .wrap, .wrap-narrow { width: min(100% - 2rem, 68rem); }
+  .hero { padding-block: 2.5rem 1.5rem; }
+  .card { padding: 1.15rem; }
+  .row {
+    grid-template-columns: 1fr;
+    gap: 0.2rem;
+    padding: 0.35rem 0;
+  }
+  .row .name { text-align: left; }
+  .chart-rows { gap: 0.25rem; }
+  .topnav-links { gap: 0; }
+  .topnav-inner { gap: 0.75rem; }
+  .metric-note { margin-left: 0; width: 100%; }
+  .lightbox { padding: 1rem; }
+
+  .data-grid { grid-template-columns: 1fr; gap: 1.5rem; }
+  .city-grid { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+  .city figcaption { font-size: 0.7rem; padding: 1rem 0.45rem 0.32rem; }
+  /* label on its own line; before -> after stays one row so the arrow reads */
+  .xp { padding: 1.1rem; }
+  .xp-line,
+  .xp-grid.has-ref .xp-line {
+    grid-template-columns: 1fr auto 1fr;
+    gap: 0.3rem 0.6rem;
+    padding: 0.6rem 0.7rem;
+  }
+  .xp-label { grid-column: 1 / -1; font-size: 0.82rem; }
+  .xp-tag { grid-column: 1 / -1; text-align: left; }
+  .xp-ref {
+    grid-column: 1 / -1;
+    text-align: left;
+    border-right: none;
+    padding-right: 0;
+    font-size: 0.82rem;
+  }
+  .xp-ref-k {
+    display: inline;
+    margin-right: 0.4rem;
+    color: var(--ink-muted);
+  }
+  .xp-ref-k::after { content: ":"; }
+  /* keep the regime names, without them the two numbers are unlabelled */
+  .xp-line.is-cols { padding-block: 0 0.2rem; }
+  .xp-line.is-cols .xp-label,
+  .xp-line.is-cols .xp-tag,
+  .xp-line.is-cols .xp-ref { display: none; }
+  .xp-line.is-cols .xp-a,
+  .xp-line.is-cols .xp-b { font-size: 0.72rem; line-height: 1.3; }
+  .xp-line.is-changed .xp-tag { order: 9; }
+  .stack-xl > * + * { margin-top: 2.75rem; }
+  .takeaway { padding: 0.75rem 0.85rem; font-size: 0.9rem; }
+  /* the anchor sits above the three distances, each on its own line */
+  .finding { grid-template-columns: 1fr; }
+  .finding-scale { grid-template-columns: 1fr; }
+  .finding-anchor,
+  .finding-stat {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: baseline;
+    gap: 0.5rem;
+    text-align: left;
+    padding: 0.75rem 1rem;
+  }
+  .finding-anchor .finding-raw,
+  .finding-n { font-size: 1.25rem; }
+  .finding-lbl { margin-top: 0; }
+  .finding-stat .finding-raw { margin-top: 0; text-align: right; }
+  .finding-tag { margin-top: 0; }
+
+  .finding-n { font-size: 1.35rem; }
+  .segmented { border-radius: var(--radius); }
+  .segmented button { padding: 0.35rem 0.7rem; }
+    }
+
+@media (max-width: 480px) {
+  .links .btn { flex: 1 1 100%; justify-content: center; }
+}
+
+/* --------------------------------------------------------------- print --- */
+
+@media print {
+  .topnav, .lightbox, .controls, .fig-zoom::after { display: none !important; }
+  body { background: #fff; }
+  section { padding-block: 1.5rem; break-inside: avoid; }
+  .chart { display: none; }
+  .table-view { display: block !important; }
+}

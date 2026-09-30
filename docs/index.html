@@ -1,0 +1,875 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <title>I Have a Stream: Making Self-Supervised Learning Work on Continuous Video</title>
+  <meta name="description" content="StreamMAE learns visual representations from continuous, temporally ordered video without global reshuffling or multi-epoch replay.">
+  <meta name="keywords" content="self-supervised learning, continuous video, streaming learning, masked autoencoders, computer vision">
+  <meta name="author" content="Ivan Martinović, Lukas Knobel, Yuki M. Asano">
+  <meta name="citation_title" content="I Have a Stream: Making Self-Supervised Learning Work on Continuous Video">
+  <meta name="citation_author" content="Martinović, Ivan">
+  <meta name="citation_author" content="Knobel, Lukas">
+  <meta name="citation_author" content="Asano, Yuki M.">
+
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="I Have a Stream: Making Self-Supervised Learning Work on Continuous Video">
+  <meta property="og:description" content="StreamMAE learns visual representations from continuous, temporally ordered video without global reshuffling or multi-epoch replay.">
+  <meta property="og:url" content="https://martinovicivan.github.io/StreamMAE/">
+  <meta property="og:image" content="https://martinovicivan.github.io/StreamMAE/static/images/social-card.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="StreamMAE overview: training on a continuous walking-tour video stream and the resulting benchmark gains.">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:image" content="https://martinovicivan.github.io/StreamMAE/static/images/social-card.png">
+  <link rel="canonical" href="https://martinovicivan.github.io/StreamMAE/">
+
+  <link rel="icon" type="image/png" href="static/images/favicon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="static/css/index.css?v=4">
+  <script defer src="static/js/index.js?v=4"></script>
+</head>
+
+<body>
+  <svg class="sprite" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg">
+    <symbol id="i-pdf" viewBox="0 0 24 24">
+      <path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"
+            d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8zm0 0v5h5M9 13h6M9 17h4"/>
+    </symbol>
+    <symbol id="i-arxiv" viewBox="0 0 24 24">
+      <path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"
+            d="M3 6h18M4 6v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V6M10 11h4"/>
+    </symbol>
+    <symbol id="i-github" viewBox="0 0 24 24">
+      <path fill="currentColor"
+            d="M12 1.5a10.5 10.5 0 0 0-3.32 20.47c.53.1.72-.23.72-.5v-1.82c-2.92.63-3.54-1.4-3.54-1.4-.48-1.22-1.17-1.55-1.17-1.55-.95-.65.07-.64.07-.64 1.06.08 1.61 1.09 1.61 1.09.94 1.6 2.46 1.14 3.06.87.1-.68.37-1.14.67-1.4-2.33-.27-4.78-1.17-4.78-5.18 0-1.15.41-2.08 1.08-2.82-.11-.27-.47-1.34.1-2.79 0 0 .88-.28 2.88 1.07a9.9 9.9 0 0 1 5.24 0c2-1.35 2.88-1.07 2.88-1.07.57 1.45.21 2.52.1 2.79.67.74 1.08 1.67 1.08 2.82 0 4.02-2.46 4.9-4.8 5.16.38.33.71.97.71 1.96v2.9c0 .28.19.61.73.5A10.5 10.5 0 0 0 12 1.5"/>
+    </symbol>
+    <symbol id="i-data" viewBox="0 0 24 24">
+      <ellipse cx="12" cy="5.6" rx="7.4" ry="3.1" fill="none" stroke="currentColor" stroke-width="1.8"/>
+      <path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"
+            d="M4.6 5.6v12.8c0 1.71 3.31 3.1 7.4 3.1s7.4-1.39 7.4-3.1V5.6M4.6 12c0 1.71 3.31 3.1 7.4 3.1s7.4-1.39 7.4-3.1"/>
+    </symbol>
+    <symbol id="i-table" viewBox="0 0 24 24">
+      <path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"
+            d="M3 5h18v14H3zM3 10h18M3 15h18M9 5v14"/>
+    </symbol>
+    <symbol id="i-chart" viewBox="0 0 24 24">
+      <path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"
+            d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>
+    </symbol>
+    <symbol id="i-copy" viewBox="0 0 24 24">
+      <path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"
+            d="M9 9h11v11H9zM5 15H4V4h11v1"/>
+    </symbol>
+    <symbol id="i-check" viewBox="0 0 24 24">
+      <path fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"
+            d="m4 12 5.5 5.5L20 7"/>
+    </symbol>
+    <symbol id="i-pause" viewBox="0 0 24 24">
+      <path fill="currentColor" d="M7 5h3.2v14H7zM13.8 5H17v14h-3.2z"/>
+    </symbol>
+    <symbol id="i-play" viewBox="0 0 24 24">
+      <path fill="currentColor" d="M8 5.2v13.6a1 1 0 0 0 1.53.85l10.2-6.8a1 1 0 0 0 0-1.7L9.53 4.35A1 1 0 0 0 8 5.2"/>
+    </symbol>
+    <symbol id="i-step" viewBox="0 0 24 24">
+      <path fill="currentColor" d="M6 5.2v13.6a1 1 0 0 0 1.53.85l9-6.8a1 1 0 0 0 0-1.7l-9-6.8A1 1 0 0 0 6 5.2"/>
+      <rect x="17.4" y="5" width="2.6" height="14" rx="1" fill="currentColor"/>
+    </symbol>
+    <symbol id="i-close" viewBox="0 0 24 24">
+      <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+            d="M6 6l12 12M18 6 6 18"/>
+    </symbol>
+  </svg>
+  <a class="skip-link" href="#main">Skip to content</a>
+
+  <nav class="topnav" aria-label="Section navigation">
+    <div class="wrap topnav-inner">
+      <a class="topnav-brand" href="#top"><span class="dot"></span>StreamMAE</a>
+      <ul class="topnav-links">
+        <li><a href="#abstract">Abstract</a></li>
+        <li><a href="#setup">Setup</a></li>
+        <li><a href="#analysis">Why it is hard</a></li>
+        <li><a href="#method">Method</a></li>
+        <li><a href="#results">Results</a></li>
+        <li><a href="#poster">Poster</a></li>
+        <li><a href="#cite">Cite</a></li>
+      </ul>
+    </div>
+  </nav>
+
+  <main id="main">
+
+    <!-- ============================================================ hero -- -->
+    <header class="hero wrap" id="top">
+      <h1>I Have a Stream: Making Self-Supervised Learning Work on Continuous Video</h1>
+
+      <p class="authors">
+        <a href="https://scholar.google.com/citations?user=sQqOCocAAAAJ&amp;hl=en" target="_blank" rel="noopener">Ivan Martinović</a><sup>1,2</sup> &nbsp;·&nbsp;
+        <a href="https://lukasknobel.github.io/" target="_blank" rel="noopener">Lukas Knobel</a><sup>2</sup> &nbsp;·&nbsp;
+        <a href="https://yukimasano.github.io/" target="_blank" rel="noopener">Yuki M. Asano</a><sup>2</sup>
+      </p>
+      <p class="affiliations">
+        <sup>1</sup>Faculty of Electrical Engineering and Computing, University of Zagreb<br>
+        <sup>2</sup>Fundamental AI Lab, University of Technology Nuremberg
+      </p>
+
+      <div class="links">
+        <button class="btn is-pending" type="button" disabled>
+          <svg class="ico" aria-hidden="true"><use href="#i-pdf"/></svg><span>Paper (soon)</span>
+        </button>
+        <button class="btn is-pending" type="button" disabled>
+          <svg class="ico" aria-hidden="true"><use href="#i-arxiv"/></svg><span>arXiv (soon)</span>
+        </button>
+        <button class="btn is-pending" type="button" disabled>
+          <svg class="ico" aria-hidden="true"><use href="#i-github"/></svg><span>Code (soon)</span>
+        </button>
+        <button class="btn is-pending" type="button" disabled>
+          <svg class="ico" aria-hidden="true"><use href="#i-data"/></svg><span>WT++ dataset (soon)</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- ========================================================= teaser -- -->
+    <section class="wrap" style="padding-block:1rem 3.5rem">
+      <figure class="fig">
+        <button class="fig-zoom" type="button" aria-label="Enlarge the StreamMAE overview figure">
+          <img src="static/images/project/overview.png"
+               width="2583" height="883"
+               alt="StreamMAE consumes a continuous walking-tour video in temporal order, trains with motion-biased crop selection and stream-aware regularization, and transfers better than streaming baselines while scaling with stream length.">
+        </button>
+        <figcaption class="fig-lead">
+          <strong>StreamMAE learns from continuous video as it arrives</strong>, in temporal order, one
+          sliding window at a time.
+          <a class="scroll-cue" href="#setup">See how it works<span aria-hidden="true">→</span></a>
+        </figcaption>
+      </figure>
+    </section>
+
+    <!-- ======================================================= abstract -- -->
+    <section id="abstract" class="tinted">
+      <div class="wrap-narrow prose">
+        <h2 class="section-title">Abstract</h2>
+        <p class="lead">
+          Self-supervised learning draws inspiration from infant visual development, yet standard training
+          pipelines bear little resemblance to it: images are independently sampled and globally shuffled
+          across epochs. To reduce this mismatch, we study self-supervised learning from continuous video
+          streams, where frames are consumed in temporal order using strict sliding-window batches, without
+          global reshuffling or multi-epoch replay. To this end, we construct <span class="mono-tag">WT++</span>,
+          a 95-hour urban walking-tour video dataset for streaming pretraining.
+        </p>
+        <p>
+          Combined with a comprehensive evaluation suite, we find that contrastive and distillation-based
+          methods struggle in this setting, while MAE is more robust but still falls short of standard i.i.d.
+          pretraining. We find that high <strong>inter</strong>-batch similarity, caused by sliding-window
+          consumption across consecutive batches, does not explain this gap. The main challenge is high
+          <strong>intra</strong>-batch similarity, where frames within each batch are near-duplicates.
+        </p>
+        <p>
+          To mitigate this, we propose <strong>StreamMAE</strong>, which preserves the core MAE reconstruction
+          objective while adapting the input pipeline with stream-aware regularization and motion-biased crop
+          selection. StreamMAE outperforms streaming baselines, matches i.i.d. MAE trained on the same video
+          data, remains competitive with ImageNet-pretrained MAE, and scales positively as the pretraining
+          stream grows from 12 to 95 hours.
+        </p>
+      </div>
+    </section>
+
+    <!-- ========================================================== setup -- -->
+    <section id="setup">
+      <div class="wrap stack-xl">
+
+        <div>
+          <div class="section-head">
+            <h2 class="section-title">The streaming setup</h2>
+            <p class="section-lede">How are batches formed from a stream?</p>
+          </div>
+
+          <figure class="fig">
+            <div class="swin" id="sliding-window">
+              <div class="swin-bar">
+                <button class="swin-btn swin-play" type="button" aria-label="Pause the animation">
+                  <svg class="ico" aria-hidden="true"><use href="#i-pause"/></svg>
+                  <span class="label">Pause</span>
+                </button>
+                <button class="swin-btn swin-step" type="button">
+                  <svg class="ico" aria-hidden="true"><use href="#i-step"/></svg>
+                  <span class="label">Step</span>
+                </button>
+                <div class="swin-sliders">
+                  <label class="swin-slider">
+                    <span>batch <em>B</em></span>
+                    <input type="range" min="2" max="8" step="1" value="4" class="swin-b">
+                    <output class="swin-b-out">4</output>
+                  </label>
+                  <label class="swin-slider">
+                    <span>stride <em>s</em></span>
+                    <input type="range" min="1" max="8" step="1" value="2" class="swin-s">
+                    <output class="swin-s-out">2</output>
+                  </label>
+                </div>
+              </div>
+
+              <div class="swin-stage">
+                <div class="swin-viewport">
+                  <div class="swin-track" role="img">
+                    <div class="swin-window"><span class="swin-window-tag"></span></div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="swin-foot">
+                <ul class="legend swin-legend">
+                  <li><span class="key" style="background:var(--ours)"></span>in this batch, new</li>
+                  <li><span class="key" style="background:#9b4522"></span>in this batch, repeated</li>
+                  <li><span class="key" style="background:#33312d"></span>outside the batch</li>
+                </ul>
+                <p class="swin-readout" role="status"></p>
+              </div>
+            </div>
+            <figcaption>
+              A batch is the current window over the stream, moved forward by a stride <em>s</em>. Drag the
+              sliders: with <em>s</em>&nbsp;≪&nbsp;<em>B</em>, nearly every frame was already in the last batch.
+            </figcaption>
+            <p class="caveat">
+              <strong>Caveat.</strong> This strip holds 64 frames and restarts once it reaches the end.
+              WT++London runs for 12 hours in a single pass. A frame appears in every batch until the
+              window has slid past it, roughly <em>B</em>/<em>s</em> of them, and never appears again. In our runs
+              <em>B</em>&nbsp;=&nbsp;2048 and <em>s</em>&nbsp;=&nbsp;1, or <em>s</em>&nbsp;=&nbsp;2 for WT++95h.
+            </p>
+          </figure>
+        </div>
+
+        <div>
+          <div class="section-head">
+            <h2 class="section-title">The streaming data</h2>
+            <p class="section-lede">What is the pretraining data?</p>
+          </div>
+
+          <div class="data-grid">
+            <div class="data-facts">
+              <p class="data-note">
+                WT++ is <strong>58 walking-tour videos</strong>, <strong>94.5 hours</strong> in total, joined
+                into <strong>one ordered stream</strong>. Each video is a long walk through a city, so the
+                model sees many different objects, lighting conditions and scenes. The default run uses a
+                single 12-hour video, WT++London.
+              </p>
+            </div>
+            <div class="card">
+              <h3 class="sub-title" style="margin-bottom:0.35rem">
+                We concatenate city videos into one longer stream
+                <span class="hint" tabindex="0" data-hint="No single walking-tour video is tens of hours long, so we build the longer streams by putting whole city videos one after another. Each stream contains the previous one plus a few more cities. Inside each video the frames keep their original order, so the only jumps in the stream are at the city boundaries."></span>
+              </h3>
+              <p class="card-sub">Each stream is the previous one plus more cities.</p>
+              <div id="streams"></div>
+            </div>
+          </div>
+
+          <div class="cities">
+            <div class="cities-head">
+              <h3 class="sub-title">Ten of the 58 videos</h3>
+              <p>Ten seconds from each. The model is trained on WT++ at 3.75 FPS.</p>
+            </div>
+            <div class="city-grid">
+              <figure class="city">
+                <video class="city-vid" poster="static/video/mostar.jpg" width="320" height="180"
+                       muted loop playsinline preload="none" data-src="static/video/mostar.mp4"
+                       aria-label="Ten seconds of the Mostar walking-tour stream"></video>
+                <figcaption>Mostar</figcaption>
+              </figure>
+              <figure class="city">
+                <video class="city-vid" poster="static/video/dubrovnik.jpg" width="320" height="180"
+                       muted loop playsinline preload="none" data-src="static/video/dubrovnik.mp4"
+                       aria-label="Ten seconds of the Dubrovnik walking-tour stream"></video>
+                <figcaption>Dubrovnik</figcaption>
+              </figure>
+              <figure class="city">
+                <video class="city-vid" poster="static/video/sarajevo.jpg" width="320" height="180"
+                       muted loop playsinline preload="none" data-src="static/video/sarajevo.mp4"
+                       aria-label="Ten seconds of the Sarajevo walking-tour stream"></video>
+                <figcaption>Sarajevo</figcaption>
+              </figure>
+              <figure class="city">
+                <video class="city-vid" poster="static/video/bangkok.jpg" width="320" height="180"
+                       muted loop playsinline preload="none" data-src="static/video/bangkok.mp4"
+                       aria-label="Ten seconds of the Bangkok walking-tour stream"></video>
+                <figcaption>Bangkok</figcaption>
+              </figure>
+              <figure class="city">
+                <video class="city-vid" poster="static/video/chiang-mai.jpg" width="320" height="180"
+                       muted loop playsinline preload="none" data-src="static/video/chiang-mai.mp4"
+                       aria-label="Ten seconds of the Chiang Mai walking-tour stream"></video>
+                <figcaption>Chiang Mai</figcaption>
+              </figure>
+              <figure class="city">
+                <video class="city-vid" poster="static/video/danang.jpg" width="320" height="180"
+                       muted loop playsinline preload="none" data-src="static/video/danang.mp4"
+                       aria-label="Ten seconds of the Da Nang walking-tour stream"></video>
+                <figcaption>Da Nang</figcaption>
+              </figure>
+              <figure class="city">
+                <video class="city-vid" poster="static/video/georgetown.jpg" width="320" height="180"
+                       muted loop playsinline preload="none" data-src="static/video/georgetown.mp4"
+                       aria-label="Ten seconds of the Georgetown walking-tour stream"></video>
+                <figcaption>Georgetown</figcaption>
+              </figure>
+              <figure class="city">
+                <video class="city-vid" poster="static/video/ipoh.jpg" width="320" height="180"
+                       muted loop playsinline preload="none" data-src="static/video/ipoh.mp4"
+                       aria-label="Ten seconds of the Ipoh walking-tour stream"></video>
+                <figcaption>Ipoh</figcaption>
+              </figure>
+              <figure class="city">
+                <video class="city-vid" poster="static/video/kaliningrad.jpg" width="320" height="180"
+                       muted loop playsinline preload="none" data-src="static/video/kaliningrad.mp4"
+                       aria-label="Ten seconds of the Kaliningrad walking-tour stream"></video>
+                <figcaption>Kaliningrad</figcaption>
+              </figure>
+              <figure class="city">
+                <video class="city-vid" poster="static/video/sihanoukville.jpg" width="320" height="180"
+                       muted loop playsinline preload="none" data-src="static/video/sihanoukville.mp4"
+                       aria-label="Ten seconds of the Sihanoukville walking-tour stream"></video>
+                <figcaption>Sihanoukville</figcaption>
+              </figure>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ======================================================= analysis -- -->
+    <section id="analysis" class="tinted">
+      <div class="wrap stack-xl">
+
+        <div class="section-head">
+          <h2 class="section-title">Why does streaming MAE lag behind i.i.d. MAE?</h2>
+          <p class="section-lede">
+            Streaming MAE is worse than i.i.d. MAE trained on the same video. Compared with i.i.d. sampling, a
+            video stream changes two properties of the batches at the same time.
+          </p>
+        </div>
+
+        <div>
+          <div class="defs">
+            <div class="def">
+              <svg class="def-art" viewBox="0 0 120 54" aria-hidden="true">
+                <rect x="2" y="6" width="54" height="42" rx="5" fill="none" stroke="var(--ours)" stroke-width="1.5"/>
+                <circle cx="16" cy="20" r="5" fill="var(--ours)"/><circle cx="30" cy="20" r="5" fill="var(--ours)"/>
+                <circle cx="44" cy="20" r="5" fill="var(--ours)"/><circle cx="16" cy="35" r="5" fill="var(--ours)"/>
+                <circle cx="30" cy="35" r="5" fill="var(--ours)"/><circle cx="44" cy="35" r="5" fill="var(--ours)"/>
+                <path d="M16 20 30 20M30 20 44 20M16 35 30 35M30 35 44 35M16 20 30 35M30 20 44 35"
+                      stroke="var(--ours)" stroke-width="1.2" opacity="0.55" fill="none"/>
+                <rect x="66" y="6" width="52" height="42" rx="5" fill="none" stroke="var(--rule-strong)" stroke-width="1.5" stroke-dasharray="3 3"/>
+              </svg>
+              <div>
+                <h3 class="def-title"><em>Intra</em>-batch similarity</h3>
+                <p>How similar the frames <strong>within one batch</strong> are to each other.
+                  <span class="hint" tabindex="0" data-hint="Mean cosine similarity over all off-diagonal pairs of L2-normalised DINOv2-L [CLS] features within a batch."></span></p>
+                <p class="def-nums">
+                  <span><b>0.004</b> ImageNet</span><span class="def-vs">vs</span><span class="is-hi"><b>0.665</b> video</span>
+                </p>
+              </div>
+            </div>
+            <div class="def">
+              <svg class="def-art" viewBox="0 0 120 54" aria-hidden="true">
+                <rect x="2" y="6" width="52" height="42" rx="5" fill="none" stroke="var(--rule-strong)" stroke-width="1.5"/>
+                <circle cx="16" cy="20" r="5" fill="var(--context)"/><circle cx="30" cy="20" r="5" fill="var(--context)"/>
+                <circle cx="16" cy="35" r="5" fill="var(--context)"/><circle cx="30" cy="35" r="5" fill="var(--context)"/>
+                <rect x="66" y="6" width="52" height="42" rx="5" fill="none" stroke="var(--context)" stroke-width="1.5"/>
+                <circle cx="80" cy="20" r="5" fill="var(--context)"/><circle cx="94" cy="20" r="5" fill="var(--context)"/>
+                <circle cx="80" cy="35" r="5" fill="var(--context)"/><circle cx="94" cy="35" r="5" fill="var(--context)"/>
+                <path d="M35 20h40M35 35h40" stroke="var(--context)" stroke-width="1.4" stroke-dasharray="3 3"
+                      marker-end="url(#ar)" fill="none"/>
+                <defs><marker id="ar" markerWidth="5" markerHeight="5" refX="4" refY="2.5" orient="auto">
+                  <path d="M0 0 5 2.5 0 5z" fill="var(--context)"/></marker></defs>
+              </svg>
+              <div>
+                <h3 class="def-title"><em>Inter</em>-batch similarity</h3>
+                <p>How similar <strong>two consecutive batches</strong> are. Consecutive sliding windows share most
+                  of their frames, so this is high for any stream.
+                  <span class="hint" tabindex="0" data-hint="A symmetric nearest-neighbour score. For each frame in batch t, take the highest cosine similarity it reaches with any frame in batch t+1, then average over the B frames of batch t. Do the same from batch t+1 back to batch t, and average the two directions. Features are L2-normalised DINOv2-L [CLS] vectors."></span></p>
+                <p class="def-nums">
+                  <span><b>0.325</b> ImageNet</span><span class="def-vs">vs</span><span class="is-hi"><b>1.000</b> video</span>
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <p class="def-src">
+            Both are mean cosine similarities of DINOv2-L features, measured on i.i.d. ImageNet-1K batches
+            and on the WT++12h stream.
+          </p>
+
+          <p class="takeaway">
+            The video stream is high on both, so streaming raises the two similarities together. To find out
+            which one causes the drop in performance, we change them one at a time.
+          </p>
+        </div>
+
+        <div>
+          <h3 class="ask">Which one matters: inter- or intra-batch similarity?</h3>
+          <div class="card" id="chart-control">
+            <div class="card-head is-tight">
+              <div class="titles"></div>
+              <div class="controls" style="margin:0">
+                <button class="ghost-toggle js-table-toggle" type="button" aria-pressed="false">
+                  <svg class="ico" aria-hidden="true"><use href="#i-table"/></svg><span class="label">Table view</span>
+                </button>
+              </div>
+            </div>
+            <p class="card-intro">Both experiments train <strong>the same MAE</strong> with a ViT-B/16 encoder.
+              Within an experiment, the runs see the same frames and only the order of the frames changes.</p>
+            <ul class="card-intro xp-plan">
+              <li><strong>Experiment 1</strong> raises only inter-batch similarity. ImageNet-1K is shuffled once
+                and read with a sliding window. Consecutive batches now overlap, but the images in each batch
+                are still diverse.</li>
+              <li><strong>Experiment 2</strong> raises only intra-batch similarity. On WT++12h, a pre-shuffled
+                stream and the chronological stream both have inter-batch similarity close to 1, but only the
+                chronological stream puts near-duplicate frames in the same batch.</li>
+            </ul>
+            <div class="chart-host"></div>
+            <p class="takeaway">
+              Raising inter-batch similarity from 0.325 to 0.989 did not hurt either benchmark, and Cityscapes
+              improved by 1.3 mIoU. Raising intra-batch similarity from 0.171 to 0.665 cost 10.6 mIoU on
+              Cityscapes and 6.1 on ADE20K.
+              <b class="punch">Intra-batch similarity is the cause of the performance degradation.</b>
+            </p>
+            <p class="caveat">
+              Fine-tuning varies by ±0.7 mIoU on Cityscapes and ±0.3 on ADE20K across seeds, so the
+              collapse in experiment 2 is far outside run-to-run noise. ViT-S and ImageNet-1K accuracy are in
+              the table view.
+            </p>
+          </div>
+        </div>
+
+        <div>
+          <h3 class="ask">How does high intra-batch similarity affect optimization?</h3>
+          <div class="card">
+            <p class="finding-intro">
+              Under i.i.d. sampling, the cosine similarity between the gradients of consecutive training
+              steps settles near zero. The bigger a streaming method's distance from that value, the worse it transfers.
+            </p>
+            <div class="finding">
+              <div class="finding-anchor">
+                <span class="finding-raw">0.04</span>
+                <span class="finding-lbl">i.i.d. MAE</span>
+                <span class="finding-tag">reference</span>
+              </div>
+              <div class="finding-scale">
+                <div class="finding-stat">
+                  <span class="finding-n">0.03</span>
+                  <span class="finding-lbl">StreamMAE</span>
+                  <span class="finding-raw">0.01</span>
+                </div>
+                <div class="finding-stat">
+                  <span class="finding-n">0.15</span>
+                  <span class="finding-lbl">streaming MAE (baseline)</span>
+                  <span class="finding-raw">−0.11</span>
+                </div>
+                <div class="finding-stat">
+                  <span class="finding-n">0.24</span>
+                  <span class="finding-lbl">Orthogonal-MAE</span>
+                  <span class="finding-raw">0.28</span>
+                </div>
+              </div>
+              <p class="finding-cap">
+                <strong>Distance from i.i.d. MAE</strong> in mean cosine similarity between
+                consecutive-batch gradients. The raw value is shown under each name.
+                <span class="hint" tabindex="0" data-hint="Measured on the last transformer block's MLP parameters, logged every 10 steps, running average over 100 values. All methods use B = 512."></span>
+              </p>
+            </div>
+            <figure class="fig" style="margin-top:1.5rem">
+              <button class="fig-zoom" type="button" aria-label="Enlarge the gradient similarity figure">
+                <img src="static/images/project/training-dynamics.png" width="2166" height="794" loading="lazy"
+                     alt="Left: running average of consecutive-batch gradient cosine similarity over 160k iterations. Orthogonal-MAE near 0.28, streaming MAE (baseline) near -0.11, StreamMAE near 0.01, i.i.d. MAE near 0.04. Right: dense transfer versus distance to the i.i.d. mean similarity, with StreamMAE closest.">
+              </button>
+            </figure>
+            <p class="takeaway">
+              Dense transfer gets worse as the distance grows: StreamMAE 0.03, streaming MAE (baseline) 0.15,
+              Orthogonal-MAE 0.24.
+              <b class="punch">StreamMAE brings the gradient behaviour of streaming training closer to i.i.d. MAE.</b>
+            </p>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ========================================================= method -- -->
+    <section id="method">
+      <div class="wrap stack-xl">
+
+        <div class="section-head">
+          <h2 class="section-title">What does StreamMAE change?</h2>
+          <p class="section-lede">
+            StreamMAE keeps the MAE objective unchanged. It changes the training pipeline to reduce the effect
+            of high intra-batch similarity.
+          </p>
+        </div>
+
+        <div class="group">
+          <h3 class="group-title">Stream-aware regularization</h3>
+          <div class="components">
+
+            <div class="component">
+              <svg class="comp-art" viewBox="0 0 200 76" role="img" aria-label="A window of eight frames, two kept for backpropagation and six dropped.">
+                <text x="0" y="9" class="art-label">stream window</text>
+                <g>
+                  <rect x="0"   y="16" width="22" height="30" rx="3" fill="var(--ours)"/>
+                  <rect x="25"  y="16" width="22" height="30" rx="3" fill="#d9d6cd"/>
+                  <rect x="50"  y="16" width="22" height="30" rx="3" fill="#d9d6cd"/>
+                  <rect x="75"  y="16" width="22" height="30" rx="3" fill="var(--ours)"/>
+                  <rect x="100" y="16" width="22" height="30" rx="3" fill="#d9d6cd"/>
+                  <rect x="125" y="16" width="22" height="30" rx="3" fill="#d9d6cd"/>
+                  <rect x="150" y="16" width="22" height="30" rx="3" fill="#d9d6cd"/>
+                  <rect x="175" y="16" width="22" height="30" rx="3" fill="#d9d6cd"/>
+                </g>
+                <path d="M11 50v10h75" stroke="var(--ours)" stroke-width="1.6" fill="none"/>
+                <path d="M86 50v10h-11" stroke="var(--ours)" stroke-width="1.6" fill="none"/>
+                <text x="92" y="64" class="art-label art-label-strong">backprop on 25%</text>
+              </svg>
+              <h4>DataDrop</h4>
+              <p>Take a large window and backpropagate through a random quarter of it. The dropped frames are not forwarded at all.</p>
+            </div>
+
+            <div class="component">
+              <svg class="comp-art" viewBox="0 0 200 76" role="img" aria-label="A row of four frames, and the same four below with shifted colours.">
+                <g>
+                  <rect x="6"   y="6" width="42" height="26" rx="3" fill="#8fa8bd"/>
+                  <rect x="54"  y="6" width="42" height="26" rx="3" fill="#93abbf"/>
+                  <rect x="102" y="6" width="42" height="26" rx="3" fill="#8ea7bc"/>
+                  <rect x="150" y="6" width="42" height="26" rx="3" fill="#95adc1"/>
+                </g>
+                <path d="M99 35v5m0 0-3-3m3 3 3-3" stroke="var(--ink-muted)" stroke-width="1.4"
+                      fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+                <g>
+                  <rect x="6"   y="44" width="42" height="26" rx="3" fill="#6fc9c6"/>
+                  <rect x="54"  y="44" width="42" height="26" rx="3" fill="#c9a06f"/>
+                  <rect x="102" y="44" width="42" height="26" rx="3" fill="#7f8fd0"/>
+                  <rect x="150" y="44" width="42" height="26" rx="3" fill="#b6c977"/>
+                </g>
+              </svg>
+              <h4>Color jitter</h4>
+              <p>Perturbs colour, brightness and contrast, so reconstruction depends less on appearance that stays the same across neighbouring frames.</p>
+            </div>
+
+            <div class="component">
+              <svg class="comp-art" viewBox="0 0 200 76" role="img" aria-label="A stack of encoder blocks with two of them skipped.">
+                <rect x="52" y="2" width="96" height="72" rx="6" fill="none" stroke="var(--rule-strong)" stroke-width="1.4"/>
+                <text x="100" y="15" class="art-label" text-anchor="middle">ViT encoder</text>
+                <g>
+                  <rect x="64" y="21" width="72" height="10" rx="2" fill="var(--ours)"/>
+                  <rect x="64" y="34" width="72" height="10" rx="2" fill="#d9d6cd" stroke="var(--rule-strong)" stroke-width="1" stroke-dasharray="3 2"/>
+                  <rect x="64" y="47" width="72" height="10" rx="2" fill="var(--ours)"/>
+                  <rect x="64" y="60" width="72" height="10" rx="2" fill="#d9d6cd" stroke="var(--rule-strong)" stroke-width="1" stroke-dasharray="3 2"/>
+                </g>
+                <path d="M44 26h-6v39h6" stroke="var(--ours)" stroke-width="1.5" fill="none"/>
+                <text x="0" y="48" class="art-label">skip</text>
+              </svg>
+              <h4>Increased drop path</h4>
+              <p>A higher drop path rate varies the effective depth of the encoder across updates. This reduces overfitting to patterns that repeat within a batch.</p>
+            </div>
+
+          </div>
+        </div>
+
+        <div class="group">
+          <h3 class="group-title">Stream-aware cropping</h3>
+          <div class="components components-2">
+
+            <div class="component">
+              <svg class="comp-art" viewBox="0 0 200 76" role="img" aria-label="A frame, a fixed-size region sampled inside it, and the final crop inside that region.">
+                <rect x="2" y="4" width="196" height="68" rx="4" fill="#e8e5dd"/>
+                <rect x="40" y="16" width="112" height="48" rx="3" fill="none" stroke="var(--ours)" stroke-width="2"/>
+                <rect x="62" y="26" width="68" height="28" rx="3" fill="var(--ours)" fill-opacity="0.18"
+                      stroke="var(--ours)" stroke-width="1.6" stroke-dasharray="4 3"/>
+                <text x="40" y="12" class="art-label art-label-strong">1. region</text>
+                <text x="96" y="44" class="art-label art-label-strong" text-anchor="middle">2. crop</text>
+              </svg>
+              <h4>Two-stage cropping</h4>
+              <p>First take a fixed-size region of the frame, then apply the standard MAE random resized crop inside it. Choosing <em>where</em> to crop becomes a separate step.</p>
+            </div>
+
+            <div class="component">
+              <svg class="comp-art" viewBox="0 0 200 76" role="img" aria-label="Four candidate regions scored by frame difference, with the one over the moving area winning.">
+                <rect x="2" y="4" width="196" height="68" rx="4" fill="#e8e5dd"/>
+                <g opacity="0.5">
+                  <rect x="12" y="14" width="58" height="34" rx="3" fill="none" stroke="var(--context)" stroke-width="1.6"/>
+                  <rect x="46" y="24" width="58" height="34" rx="3" fill="none" stroke="var(--context)" stroke-width="1.6"/>
+                  <rect x="80" y="12" width="58" height="34" rx="3" fill="none" stroke="var(--context)" stroke-width="1.6"/>
+                </g>
+                <rect x="126" y="20" width="62" height="40" rx="3" fill="var(--ours)" fill-opacity="0.18"
+                      stroke="var(--ours)" stroke-width="2.2"/>
+                <text x="157" y="44" class="art-label art-label-strong" text-anchor="middle">max Δ</text>
+              </svg>
+              <h4>Motion-biased crop selection</h4>
+              <p>Sample <em>K</em>&nbsp;=&nbsp;4 candidate regions, score each by its mean patch-wise L1 difference to the previous frame, and keep the highest. It is used with probability 0.5 and needs no optical flow.</p>
+            </div>
+
+          </div>
+        </div>
+
+        <figure class="fig">
+          <button class="fig-zoom" type="button" aria-label="Enlarge the motion-biased crop selection figure">
+            <img src="static/images/project/motion-crops.jpg" width="2100" height="386" loading="lazy"
+                 alt="Frame x_t minus frame x_t-1 gives a patch-wise L1 distance map. The highest-difference crop captures moving cars instead of a static tree.">
+          </button>
+          <figcaption>The selected crop covers the moving cars. The random crop from the same frame covers a static tree.</figcaption>
+        </figure>
+
+        <div class="card" id="chart-ablation">
+          <div class="card-head">
+            <div class="titles">
+              <h3 class="sub-title">Ablation study</h3>
+              <p>Components are added one at a time, ViT-S/16 on WT++12h. The baseline here has no DataDrop.
+                <span class="hint" tabindex="0" data-hint="Elsewhere on this page the streaming MAE (baseline) is reported with DataDrop (61.3 Cityscapes), because DataDrop generally improves the streaming baselines. This ablation starts from plain MAE (60.8) so that DataDrop can be added as its own step. That is why the gain is +3.0 here and +2.5 in the benchmark chart."></span></p>
+            </div>
+            <div class="controls" style="margin:0">
+              <div class="segmented" aria-label="Choose a benchmark"></div>
+              <button class="ghost-toggle js-table-toggle" type="button" aria-pressed="false">
+                <svg class="ico" aria-hidden="true"><use href="#i-table"/></svg><span class="label">Table view</span>
+              </button>
+            </div>
+          </div>
+          <div class="chart-host"></div>
+          <div class="chart-foot">
+            <ul class="legend">
+              <li><span class="key context"></span>Partial</li>
+              <li><span class="key ours"></span>Full StreamMAE</li>
+            </ul>
+            <p class="metric-note"></p>
+          </div>
+          <p class="takeaway">
+            The full pipeline gives the best result on all three benchmarks, so we keep every component.
+            On Cityscapes it gains <strong>+3.0 mIoU</strong> over plain streaming MAE (baseline), or
+            <strong>+2.5</strong> over the DataDrop baseline used elsewhere.
+          </p>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ======================================================== results -- -->
+    <section id="results" class="tinted">
+      <div class="wrap stack-xl">
+
+        <div class="section-head">
+          <h2 class="section-title">Does it work?</h2>
+          <p class="section-lede">
+            Everything below is pretrained from scratch and evaluated with full fine-tuning.
+          </p>
+        </div>
+
+        <div class="card" id="chart-benchmark">
+          <div class="card-head">
+            <div class="titles">
+              <h3 class="sub-title">Can StreamMAE match i.i.d. MAE on the same video?</h3>
+              <p>ViT-S/16 on WT++12h. The dashed line is i.i.d. MAE on that same video.
+                <span class="hint" tabindex="0" data-hint="The ImageNet-1K i.i.d. reference gets the same number of iterations as the WT++12h streaming runs. It was matched on iteration budget, so it is weaker than a fully optimised ImageNet MAE."></span></p>
+            </div>
+            <div class="controls" style="margin:0">
+              <div class="segmented" aria-label="Choose a benchmark"></div>
+              <button class="ghost-toggle js-table-toggle" type="button" aria-pressed="false">
+                <svg class="ico" aria-hidden="true"><use href="#i-table"/></svg><span class="label">Table view</span>
+              </button>
+            </div>
+          </div>
+          <div class="chart-host"></div>
+          <div class="chart-foot">
+            <ul class="legend">
+              <li><span class="key ours"></span>StreamMAE</li>
+              <li><span class="key ref"></span>i.i.d. reference</li>
+              <li><span class="key context"></span>Streaming baseline</li>
+            </ul>
+            <p class="metric-note"></p>
+          </div>
+          <p class="takeaway">
+            Yes. It beats every streaming baseline, and it is slightly better than i.i.d. MAE trained on the same video on all five benchmarks.
+          </p>
+        </div>
+
+        <div class="card" id="chart-encoder">
+          <div class="card-head">
+            <div class="titles">
+              <h3 class="sub-title">Does a larger encoder close the gap on its own?</h3>
+              <p>ViT-B/16 on WT++12h.</p>
+            </div>
+            <div class="controls" style="margin:0">
+              <div class="segmented" aria-label="Choose a benchmark"></div>
+              <button class="ghost-toggle js-table-toggle" type="button" aria-pressed="false">
+                <svg class="ico" aria-hidden="true"><use href="#i-table"/></svg><span class="label">Table view</span>
+              </button>
+            </div>
+          </div>
+          <div class="chart-host"></div>
+          <div class="chart-foot">
+            <ul class="legend">
+              <li><span class="key ours"></span>StreamMAE</li>
+              <li><span class="key ref"></span>i.i.d. reference</li>
+              <li><span class="key context"></span>Streaming baseline</li>
+            </ul>
+            <p class="metric-note"></p>
+          </div>
+          <p class="takeaway">
+            No. At ViT-B the gap gets <em>bigger</em>, and streaming MAE (baseline) is nearly 10 mIoU below
+            i.i.d. MAE on Cityscapes. StreamMAE reaches 69.0 there, above i.i.d. MAE at 67.8.
+          </p>
+        </div>
+
+        <div class="card" id="chart-scaling">
+          <div class="card-head">
+            <div class="titles">
+              <h3 class="sub-title">Does more pretraining video keep helping?</h3>
+              <p>StreamMAE on streams from 12 to 95 hours. Hover a point to see both encoders.</p>
+            </div>
+            <div class="controls" style="margin:0">
+              <div class="segmented" aria-label="Choose a benchmark"></div>
+              <button class="ghost-toggle js-table-toggle" type="button" aria-pressed="false">
+                <svg class="ico" aria-hidden="true"><use href="#i-table"/></svg><span class="label">Table view</span>
+              </button>
+            </div>
+          </div>
+          <div class="chart-host"></div>
+          <div class="chart-foot">
+            <ul class="legend">
+              <li><span class="key line ours"></span>ViT-S/16</li>
+              <li><span class="key line ours-deep"></span>ViT-B/16</li>
+            </ul>
+            <p class="metric-note"></p>
+          </div>
+          <p class="takeaway">
+            Yes. Every benchmark is better at 95 hours than at 12 for both encoders, and all except KITTI
+            improve at every step in between.
+          </p>
+        </div>
+
+        <div class="card" id="chart-longrun">
+          <div class="card-head">
+            <div class="titles">
+              <h3 class="sub-title">How does StreamMAE compare with i.i.d. MAE on ImageNet-1K?</h3>
+              <p>Both trained for the same number of iterations, about 650k, matched to the 95-hour stream.
+                StreamMAE sees only walking-tour video, while the reference sees ImageNet-1K.
+                <span class="hint" tabindex="0" data-hint="~650k steps is 95 hours of video at 3.75 FPS with stride s = 2, so the i.i.d. ImageNet baseline gets the same number of optimisation steps as the scaled StreamMAE runs."></span></p>
+            </div>
+            <div class="controls" style="margin:0">
+              <div class="segmented" aria-label="Choose a benchmark"></div>
+              <button class="ghost-toggle js-table-toggle" type="button" aria-pressed="false">
+                <svg class="ico" aria-hidden="true"><use href="#i-table"/></svg><span class="label">Table view</span>
+              </button>
+            </div>
+          </div>
+          <div class="chart-host"></div>
+          <div class="chart-foot">
+            <ul class="legend">
+              <li><span class="key ours"></span>StreamMAE on WT++95h</li>
+              <li><span class="key ref"></span>i.i.d. MAE on ImageNet-1K</li>
+            </ul>
+            <p class="metric-note"></p>
+          </div>
+          <p class="takeaway">
+            With ViT-S, StreamMAE trained on walking-tour video <em>beats</em> i.i.d. MAE trained on ImageNet-1K
+            on Cityscapes (+2.1 mIoU) and ADE20K (+1.0), and is 0.1 points behind on IN-1K. With ViT-B it is
+            behind on all three, most on ADE20K (3.3 mIoU). Checkpoint averaging brings its Cityscapes score to
+            75.3, just above the ImageNet-1K reference.
+          </p>
+        </div>
+
+        <div class="card" id="chart-domains">
+          <div class="card-head">
+            <div class="titles">
+              <h3 class="sub-title">Does StreamMAE work only when pretrained on walking tours?</h3>
+              <p>ViT-B/16 on three other continuous streams. Within each stream, all three methods see the same
+                frames for the same number of iterations.</p>
+            </div>
+            <div class="controls" style="margin:0">
+              <div class="segmented" aria-label="Choose a benchmark"></div>
+              <button class="ghost-toggle js-table-toggle" type="button" aria-pressed="false">
+                <svg class="ico" aria-hidden="true"><use href="#i-table"/></svg><span class="label">Table view</span>
+              </button>
+            </div>
+          </div>
+          <div class="chart-host"></div>
+          <div class="chart-foot">
+            <ul class="legend">
+              <li><span class="key ours"></span>StreamMAE</li>
+              <li><span class="key ref"></span>i.i.d. reference</li>
+              <li><span class="key context"></span>streaming MAE (baseline)</li>
+            </ul>
+            <p class="metric-note"></p>
+          </div>
+          <p class="takeaway">
+            No. StreamMAE beats streaming MAE (baseline) on every task for kitchen, dashcam and daily-life
+            video. On HD-EPIC and CROWD it also beats i.i.d. MAE on every task.
+          </p>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ========================================================= poster -- -->
+    <section id="poster">
+      <div class="wrap-narrow">
+        <div class="section-head">
+          <h2 class="section-title">Poster</h2>
+        </div>
+        <figure class="fig">
+          <button class="fig-zoom" type="button" aria-label="Enlarge the StreamMAE poster">
+            <img src="static/images/project/poster-preview.jpg" width="2000" height="1429" loading="lazy"
+                 alt="The StreamMAE research poster, covering motivation, the streaming setup, why streaming MAE lags behind i.i.d. MAE, the method, and evaluation results.">
+          </button>
+          <figcaption>
+            <a href="static/pdfs/streammae-poster.pdf" target="_blank" rel="noopener">Open the poster as a PDF</a>
+          </figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <!-- =========================================================== cite -- -->
+    <section id="cite" class="tinted">
+      <div class="wrap-narrow">
+        <div class="bibtex-head">
+          <h2 class="section-title" style="margin:0">BibTeX</h2>
+          <button class="ghost-toggle copy-btn" type="button">
+            <svg class="ico" aria-hidden="true"><use href="#i-copy"/></svg><span class="label">Copy</span>
+          </button>
+        </div>
+        <pre><code id="bibtex-code">@misc{martinovic2026stream,
+  title  = {I Have a Stream: Making Self-Supervised Learning Work on Continuous Video},
+  author = {Martinovi{\'c}, Ivan and Knobel, Lukas and Asano, Yuki M.},
+  year   = {2026},
+  note   = {Preprint}
+}</code></pre>
+        <p style="font-size:.85rem;color:var(--ink-muted);margin:.85rem 0 0">
+          Provisional entry. It will be replaced once the preprint is public.
+        </p>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="footer">
+    <div class="wrap">
+      <p>
+        Page adapted from the
+        <a href="https://github.com/eliahuhorwitz/Academic-project-page-template" target="_blank" rel="noopener">Academic Project Page Template</a>,
+        itself adopted from <a href="https://nerfies.github.io" target="_blank" rel="noopener">Nerfies</a>.
+        Licensed under
+        <a rel="license" href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank">CC BY-SA 4.0</a>.
+      </p>
+    </div>
+  </footer>
+
+  <div class="lightbox" id="lightbox" role="dialog" aria-modal="true" aria-label="Enlarged figure">
+    <button class="lightbox-close" type="button" aria-label="Close">
+      <svg class="ico ico-lg" aria-hidden="true"><use href="#i-close"/></svg>
+    </button>
+    <div>
+      <img src="" alt="">
+      <p class="lightbox-caption"></p>
+    </div>
+  </div>
+</body>
+</html>
