@@ -240,8 +240,8 @@ section.tinted {
   font-weight: 600;
   color: var(--ink);
   background: var(--surface);
-  border: 1.5px solid var(--ours-deep);
-  border-radius: 100px;
+  border: 2px solid var(--ours-deep);
+  border-radius: 8px;
   text-decoration: none;
   cursor: pointer;
   transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
@@ -255,6 +255,7 @@ section.tinted {
   border-color: var(--rule-strong);
   border-style: dashed;
   border-width: 1px;
+  padding: calc(0.6rem + 1px) calc(1.1rem + 1px);   /* thinner border, same outer size */
   cursor: default;
 }
 .btn[disabled]:hover, .btn.is-pending:hover { background: transparent; border-color: var(--rule-strong); }
